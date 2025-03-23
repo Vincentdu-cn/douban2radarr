@@ -11,7 +11,8 @@ logging.basicConfig(
 )
 
 # 常量定义
-BASE_URL = "https://movie.douban.com/people/140463388/wish"
+# BASE_URL通过登录豆瓣网获取
+BASE_URL = "https://movie.douban.com/people/$DouBanID/wish"
 BASELINE_FILE = "baseline.json"
 
 def load_baseline():
@@ -35,9 +36,16 @@ def fetch_wishlist():
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
     try:
-        response = requests.get(BASE_URL, headers=headers)
+        response = requests.get(
+            BASE_URL,
+            headers=headers,
+            # 按时间排序，从0部开始显示，表格模式，只显示电影
+            params={"sort": "time", "start": 0, "mode": "grid", "type": "movie"},
+            timeout=10
+        )
         response.raise_for_status()
         return response.text
+
     except requests.RequestException as e:
         logging.error(f"获取豆瓣想看列表失败: {e}")
         return None
@@ -142,7 +150,7 @@ def main():
             "movie_name": current_movies[0]["title"],
             "add_date": current_movies[0]["add_date"]
         }
-        save_baseline(new_baseline)
+        save_baseline(new_baseline)'
     else:
         logging.info("没有发现新电影")
 
