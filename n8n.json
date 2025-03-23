@@ -1,0 +1,332 @@
+{
+  "name": "Media",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "http://192.168.199.99:26000/movie",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "={{ $json.query.name }}"
+            },
+            {
+              "name": "year",
+              "value": "={{ $json.query.year }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        40,
+        -320
+      ],
+      "id": "160ddb71-41cb-4646-afb1-2929f255fd49",
+      "name": "IMDB_ID",
+      "notesInFlow": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://radarr.cn/api/v3/movie",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"title\": \"add_movie\",\n    \"qualityProfileId\": {{ $json.quality }},\n    \"tmdbId\": {{ $json.id }},\n    \"rootFolderPath\": \"/video/Movies\",\n    \"addOptions\": {\n        \"ignoreEpisodesWithFiles\": true,\n        \"ignoreEpisodesWithoutFiles\": true,\n        \"monitor\": \"movieOnly\",\n        \"searchForMovie\": false,\n        \"addMethod\": \"manual\"\n    }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        560,
+        -360
+      ],
+      "id": "d0c2e821-5268-4e7f-9879-e94ef6f77bba",
+      "name": "Radarr_API",
+      "notesInFlow": false,
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "AbX3PzYCoWJwxTkE",
+          "name": "TMDB_key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "douban",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -380,
+        -220
+      ],
+      "id": "4fcf3a31-3dd3-4fe7-a996-84f6049ae524",
+      "name": "Webhook",
+      "webhookId": "c598aaa2-d6ab-4850-a447-e98c85e42778"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $('IMDB_ID').item.json.title }} {{ $('IMDB_ID').item.json.year }}（{{ $('IMDB_ID').item.json.id }}）添加成功！",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        -360
+      ],
+      "id": "fab7a3da-d138-45f7-8400-e86c765ec86a",
+      "name": "Succeeded",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "豆瓣请求参数（name,year）不正确，请求失败！",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        40,
+        -100
+      ],
+      "id": "5ea0f6ca-f74b-4e3b-9678-6dd877f4d00c",
+      "name": "douban_Failed",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=IMDB查询失败！（{{ $json.title }}{{ $json.error.message }}）",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        540,
+        -100
+      ],
+      "id": "b3e72ac8-77b2-4cc6-b383-97315e30a0b8",
+      "name": "IMDB_Failed",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "89bc39a6-b3cc-49c3-b961-db0c75c5478a",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        280,
+        -340
+      ],
+      "id": "ca63eeed-6101-4dd6-8bee-ae1a91057525",
+      "name": "IMDB_IF"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b2a1ce7c-f51f-49d1-9d75-2e871edfc120",
+              "leftValue": "={{ $json.query.name }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "d48120c9-b5ce-4f98-916f-152f66dbf13e",
+              "leftValue": "={{ $json.query.year }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -160,
+        -220
+      ],
+      "id": "99ccca96-a6c9-417c-9fb7-a484e7696ae1",
+      "name": "DOUBAN_IF",
+      "notesInFlow": false,
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "content": "## 处理流程\n- 轮询豆瓣“想看”，返回name（心之全蚀 / Total Eclipse / 全蚀狂爱(台) / Eclipse totale），year\n- Webhook接收，IMDB_ID处理name分割，判断返回title是否在name中，返回ID\n- Radarr添加\n## 说明 \n- 豆瓣定时查询“想看”列表部署在Openwrt\n- IMDB_ID查询部署在fnOS,imdb-api.service服务",
+        "height": 220,
+        "width": 640
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        -640
+      ],
+      "id": "ca8a474a-6c02-46a1-92c0-945522447137",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "IMDB_ID": {
+      "main": [
+        [
+          {
+            "node": "IMDB_IF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IMDB_Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "DOUBAN_IF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Radarr_API": {
+      "main": [
+        [
+          {
+            "node": "Succeeded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMDB_IF": {
+      "main": [
+        [
+          {
+            "node": "Radarr_API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IMDB_Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DOUBAN_IF": {
+      "main": [
+        [
+          {
+            "node": "IMDB_ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "douban_Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "43afc3cd-89a3-4046-a7aa-a74ef6ccb87d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "64f35fc4b4f79076eb1d6d0e71a6fef6f2fb797f6a587c3a3085dec46e891a27"
+  },
+  "id": "8zsOu2dmwzeQyDkD",
+  "tags": []
+}
