@@ -9,4 +9,4 @@
 3. Radarr添加电影
 ## n8n流程
 除了定时任务和imdbid.py，后面任务在n8n中运行。
-![image](https://github.com/user-attachments/assets/47a99759-782b-4af5-a855-0dab0e7fce7f)
+![image](https://github.com/user-attachments/assets/149829fc-ca20-429c-8b0e-ec85c274abe7)
