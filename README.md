@@ -1,7 +1,7 @@
 # douban2radarr
 监控豆瓣”想看“列表，有更新时自动同步到Radarr中。
 ## 介绍
-<img width="611" alt="shapes at 25-03-23 15 09 26" src="https://github.com/user-attachments/assets/c8119546-9d94-42d7-96fe-bdbb72f7c287" />
+<img width="666" alt="shapes at 25-03-24 15 34 41" src="https://github.com/user-attachments/assets/091e49e8-b57d-4dde-99f0-1926fd2c81e3" />
 
 1. 定时获取豆瓣”想看“列表
 定时运行douban_wishlist_monitor.py，获取新添加电影，返回name（心之全蚀 / Total Eclipse / 全蚀狂爱(台) / Eclipse totale），year
