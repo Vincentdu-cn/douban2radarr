@@ -1,0 +1,493 @@
+{
+  "name": "TmdbToRadarr",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1780,
+        220
+      ],
+      "id": "db747819-17da-4300-be53-3396ae2e4f4e",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4560b329-8f26-46f2-a01a-495fd61340c4",
+              "leftValue": "={{ $json.results[0].original_language }}",
+              "rightValue": "en",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -60,
+        220
+      ],
+      "id": "c8f74836-8621-4387-966e-b414851f4fbf",
+      "name": "original_language"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3d9adbb5-64ae-46fd-bc77-33c1e7d08713",
+              "name": "quality",
+              "value": 7,
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        180,
+        120
+      ],
+      "id": "b591aebe-6e4a-4e7e-a7fb-7d0179a83824",
+      "name": "quality7"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3d9adbb5-64ae-46fd-bc77-33c1e7d08713",
+              "name": "quality",
+              "value": 9,
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        180,
+        320
+      ],
+      "id": "0ce69d70-d5ed-4616-b37e-4972594f774c",
+      "name": "quality9"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -360,
+        280
+      ],
+      "id": "49479aa3-2c0c-4391-a6af-d54bc4ad37dd",
+      "name": "Wait-3",
+      "webhookId": "6bbe7487-8db4-4cb3-a50f-1436d1e782bc"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5e38163d-aa90-4930-ae1d-09a1359e3946",
+              "leftValue": "={{ $('movie_name').all().toJsonString() }}",
+              "rightValue": "={{ $json.results[0].original_title }}",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -680,
+        240
+      ],
+      "id": "643c0892-20b3-4ab9-ac1a-9eaa0f60df6a",
+      "name": "original_title"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "movie_name",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -1440,
+        220
+      ],
+      "id": "8087aa89-5ffa-46df-9253-ddd906c58eef",
+      "name": "movie_name"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1200,
+        220
+      ],
+      "id": "688cdbc4-eb15-47c4-a94f-7e8017305174",
+      "name": "movie_name Loop"
+    },
+    {
+      "parameters": {
+        "url": "https://api.themoviedb.org/3/search/movie",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={\n  \"query\": \"{{ $json.movie_name}}\",\n  \"year\": \"{{ $('When Executed by Another Workflow').item.json.year }}\",\n  \"include_adult\": \"false\",\n  \"language\": \"zh\",\n  \"page\": 1\n}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -920,
+        240
+      ],
+      "id": "4227f5a4-9289-47f8-9645-cc07eeb27a2c",
+      "name": "TMDB_API",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "8iE1y73pmNAKSJew",
+          "name": "TMDB"
+        },
+        "httpHeaderAuth": {
+          "id": "caLEsQ9VmNjguGXJ",
+          "name": "TMDB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://XXXXXX/api/v3/movie",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"title\": \"add_movie\",\n    \"qualityProfileId\": {{ $json.quality }},\n    \"tmdbId\": {{ $json.results[0].id }},\n    \"rootFolderPath\": \"/video/Movies\",\n    \"addOptions\": {\n        \"ignoreEpisodesWithFiles\": true,\n        \"ignoreEpisodesWithoutFiles\": true,\n        \"monitor\": \"movieOnly\",\n        \"searchForMovie\": false,\n        \"addMethod\": \"manual\"\n    }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        380,
+        220
+      ],
+      "id": "2f09414f-cd5e-4d87-9fd3-50d394eb25ef",
+      "name": "Radarr_API",
+      "notesInFlow": false,
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "AbX3PzYCoWJwxTkE",
+          "name": "TMDB_key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 注释 \n**提取出movie_name数组**",
+        "height": 260,
+        "width": 260
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1520,
+        140
+      ],
+      "id": "59124ba4-c8d9-4190-a8a9-e0abd9da36a5",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    \"movie_name\": [\n      \"作家\",\n      \"El autor\",\n      \"命运小说家(台)\",\n      \"不良动机\"\n    ],\n    \"year\": \"2017\",\n    \"add_date\": \"2025-05-10\"\n  },\n  {\n    \"movie_name\": [\n      \"鸟笼\",\n      \"The Birdcage\",\n      \"假凤虚凰\",\n      \"鸟笼夜总会\"\n    ],\n    \"year\": \"1996\",\n    \"add_date\": \"2025-05-02T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"无痛凯恩\",\n      \"Novocaine\",\n      \"无痛先生(台)\",\n      \"无痛侠(港)\"\n    ],\n    \"year\": \"2025\",\n    \"add_date\": \"2025-04-24T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"闹事之徒\",\n      \"The Instigators\",\n      \"煽动者\"\n    ],\n    \"year\": \"2024\",\n    \"add_date\": \"2025-03-23T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"猫猫的奇幻漂流\",\n      \"Straume\",\n      \"漂流\",\n      \"黑猫的奇幻漂流\"\n    ],\n    \"year\": \"2024\",\n    \"add_date\": \"2025-03-22T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"心之全蚀\",\n      \"Total Eclipse\",\n      \"全蚀狂爱(台)\",\n      \"Eclipse totale\"\n    ],\n    \"year\": \"1995\",\n    \"add_date\": \"2025-03-16T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"传奇\",\n      \"Legend\",\n      \"金牌黑帮(台)\",\n      \"大时代(港)\"\n    ],\n    \"year\": \"2015\",\n    \"add_date\": \"2025-03-16T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"寂静人生\",\n      \"Still Life\",\n      \"继续活着\",\n      \"无人出席的告別式\"\n    ],\n    \"year\": \"2013\",\n    \"add_date\": \"2024-10-12T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"莫娣\",\n      \"Maudie\",\n      \"彩绘心天地(台)\",\n      \"茉迪的彩色小屋(台)\"\n    ],\n    \"year\": \"2016\",\n    \"add_date\": \"2024-10-08T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"垃圾男孩\",\n      \"Trash\",\n      \"拾荒男孩\"\n    ],\n    \"year\": \"2014\",\n    \"add_date\": \"2024-09-29T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"小姐好白\",\n      \"White Chicks\",\n      \"白净密探\",\n      \"雏鸟小白\"\n    ],\n    \"year\": \"2004\",\n    \"add_date\": \"2024-09-14T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"爱之女巫\",\n      \"The Love Witch\",\n      \"恋爱魔女\"\n    ],\n    \"year\": \"2016\",\n    \"add_date\": \"2024-07-28T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"布朗克斯的故事\",\n      \"A Bronx Tale\",\n      \"四海情深\",\n      \"不一样的童年\"\n    ],\n    \"year\": \"1993\",\n    \"add_date\": \"2024-05-29T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"阿诺拉\",\n      \"Anora\",\n      \"艾诺拉(台)\"\n    ],\n    \"year\": \"2024\",\n    \"add_date\": \"2024-05-29T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"艾米莉亚·佩雷斯\",\n      \"Emilia Pérez\",\n      \"艾米莉亚\",\n      \"毒王女人梦\"\n    ],\n    \"year\": \"2024\",\n    \"add_date\": \"2024-05-29T00:00:00.000Z\"\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1780,
+        540
+      ],
+      "id": "b14fd72d-6d1b-4e6a-b2de-8026d96d49ff",
+      "name": "输入示例"
+    },
+    {
+      "parameters": {
+        "content": "## 示例",
+        "height": 200,
+        "width": 1140
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1820,
+        480
+      ],
+      "id": "62b75e96-9444-47e3-b12d-cbd64d2aa4fe",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    \"movie_name\": [\n      \"作家\",\n      \"El autor\",\n      \"命运小说家(台)\",\n      \"不良动机\"\n    ]\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1440,
+        540
+      ],
+      "id": "40ca20e0-3f47-4357-89db-8961c8a0f600",
+      "name": "提取数组示例"
+    },
+    {
+      "parameters": {
+        "content": "## 注释 \n**判断TMDB搜索到第一部电影original_title是否包含在电影所有名称中。**\n- **original_title：一般为发行国的名称，英文电影一般为其英文名**\n- **电影所有名称，如\"movie_name\":**\n**[\"作家\",\"El autor\",\"命运小说家(台)\",\"不良动机\"]**\n- **循环会遍历所有名称，直到找到匹配的为止**",
+        "height": 340,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        60
+      ],
+      "id": "73c436e7-7e33-4355-a7b2-6195d9585b9b",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## 注释 \n**判断电影的original_language，自定义下载的电影文件质量**\n- **英文电影（en），quality为7，表示设置为Customized**\n- **当非英文电影，quality为9，表示设置为1080P-Language**",
+        "height": 500,
+        "width": 700
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        -20
+      ],
+      "id": "6dc99ff7-d227-4d45-aae7-e95c4c25d1e8",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {
+    "输入示例": [
+      {
+        "json": {
+          "movie_name": [
+            "作家",
+            "El autor",
+            "命运小说家(台)",
+            "不良动机"
+          ],
+          "year": "2017",
+          "add_date": "2025-05-10"
+        }
+      }
+    ],
+    "提取数组示例": [
+      {
+        "json": {
+          "movie_name": [
+            "作家",
+            "El autor",
+            "命运小说家(台)",
+            "不良动机"
+          ]
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "movie_name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "original_language": {
+      "main": [
+        [
+          {
+            "node": "quality7",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "quality9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "quality7": {
+      "main": [
+        [
+          {
+            "node": "Radarr_API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "quality9": {
+      "main": [
+        [
+          {
+            "node": "Radarr_API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait-3": {
+      "main": [
+        [
+          {
+            "node": "movie_name Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "original_title": {
+      "main": [
+        [
+          {
+            "node": "original_language",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait-3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "movie_name": {
+      "main": [
+        [
+          {
+            "node": "movie_name Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "movie_name Loop": {
+      "main": [
+        [],
+        [
+          {
+            "node": "TMDB_API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TMDB_API": {
+      "main": [
+        [
+          {
+            "node": "original_title",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3e71b165-6484-4a5c-ad17-27804a8de839",
+  "meta": {
+    "instanceId": "64f35fc4b4f79076eb1d6d0e71a6fef6f2fb797f6a587c3a3085dec46e891a27"
+  },
+  "id": "BjK7369kF2QDPLIh",
+  "tags": []
+}
