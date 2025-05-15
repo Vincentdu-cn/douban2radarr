@@ -1,0 +1,816 @@
+{
+  "name": "Media",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 处理流程\n- 从baseline.json提取基线信息\n- 获取豆瓣“想看”,解析HTML提取电影信息\n- 对比列表中第一个电影的add_date和基线add_date，如果有更新，则更新add_date基线文件，\n  并开始循环遍历每部电影，JSON格式{\"movie_name\": Array, \"year\": Int, \"add_date\": String}\n- 二层循环遍历数组movie_name（[\"心之全蚀\",\"Total Eclipse\",\"全蚀狂爱(台)\",\"Eclipse totale\"]）\n- movie_name中请求TMDB API，判断第一个结果的original_title是否包含在movie_name.ToString中，\n  直到匹配到后请求Radarr API加入电影",
+        "height": 200,
+        "width": 700
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -740,
+        -160
+      ],
+      "id": "9f594280-cf9a-4451-bb91-578df4557a3f",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            },
+            {
+              "triggerAtHour": 20
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -740,
+        220
+      ],
+      "id": "a68e618f-644d-412d-a3cf-111753eec06e",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "=https://movie.douban.com/people/XXXXXX/wish",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "{\"sort\": \"time\", \"start\": 0, \"mode\": \"grid\", \"type\": \"movie\"}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        100,
+        220
+      ],
+      "id": "d114b06f-d99c-42de-94ee-cafd0d65d5c5",
+      "name": "DouBan_Wishlist"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "movies",
+              "cssSelector": ".grid-view > .item.comment-item",
+              "skipSelectors": ".pic,.nbg,.playable",
+              "returnArray": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        300,
+        220
+      ],
+      "id": "a2d68f7f-6aff-41ed-a03e-c7b65d855c25",
+      "name": "HTML"
+    },
+    {
+      "parameters": {
+        "jsCode": "function processMovieStringToJson(inputString) {\n    const parts = inputString\n        .split('*')\n        .map(part => part.trim())\n        .filter(part => part.length > 0);\n\n    // 如果字符串未能分割成至少3个部分，则以JSON格式返回一个包含错误信息的对象\n    if (parts.length < 3) {\n        return JSON.stringify({\n            error: \"输入字符串未能分割成至少三个部分。\",\n            titles: [],\n            year: \"\",\n            release_date: null\n        }, null, 2); // null, 2 用于格式化JSON输出\n    }\n\n    const part1Raw = parts[0];\n    const part2Raw = parts[1];\n    const part3Raw = parts[2];\n\n    // 1. 处理第一部分：提取标题并将其分割成数组\n    let titlesArray = [];\n    let rawTitlesString = '';\n    const linkStartIndex = part1Raw.indexOf('[');\n\n    if (linkStartIndex !== -1) {\n        rawTitlesString = part1Raw.substring(0, linkStartIndex).trim();\n    } else {\n        rawTitlesString = part1Raw.trim(); // 如果未找到 '['，则使用整个第一部分作为原始标题字符串\n    }\n\n    if (rawTitlesString) {\n        titlesArray = rawTitlesString\n            .split('/') // 使用 / 分割标题\n            .map(title => title.trim()) // 去除每个单独标题字符串前后的空白\n            .filter(title => title.length > 0); // 移除因 \" / / \" 或末尾斜杠产生的空字符串\n    }\n\n    // 2. 处理第二部分：提取年份\n    let year = '';\n    const yearMatch = part2Raw.match(/\\b(\\d{4})\\b/); // 正则表达式匹配独立的四位数字\n    if (yearMatch && yearMatch[1]) {\n        year = yearMatch[1];\n    }\n\n    // 3. 处理第三部分：提取添加日期\n    const dateValue = part3Raw.trim(); // 确保第三部分的日期字符串已去除前后空白\n\n    // 准备要转换为JSON的结果对象\n    const resultObject = {\n        movie_name: titlesArray,\n        year: year,\n        add_date: dateValue\n    };\n\n    // 将对象转换为JSON字符串\n    // 第二个参数 null 表示不使用 replacer 函数，第三个参数 2 表示使用2个空格进行缩进以美化输出。\n    // 如果需要紧凑的JSON字符串，可以移除 null 和 2。\n    return JSON.stringify(resultObject, null, 2);\n}\n\nlet res = [];\nfor (const item of $input.all()[0].json.movies) {\n  // 你的输入字符串\n  const inputString = item;\n  const jsonOutput = processMovieStringToJson(inputString);\n  // 加入返回结果数字，并转化为JSON\n  res.push(JSON.parse(jsonOutput))\n}\n\nreturn res;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        220
+      ],
+      "id": "bc9cf637-40e1-4942-828b-4930788026e6",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "037db1b1-0265-4268-8232-621c9fd06964",
+              "leftValue": "={{ $json.add_date }}",
+              "rightValue": "={{ $('baseline').item.json.data[0].movie.add_date.toDateTime() }} ",
+              "operator": {
+                "type": "dateTime",
+                "operation": "after"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1460,
+        400
+      ],
+      "id": "a8e01f1c-36a0-40fc-a950-7cbecccaaa69",
+      "name": "add_date"
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1620,
+        40
+      ],
+      "id": "9a985fc4-1883-4ab5-8bcf-126077a302ff",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        40
+      ],
+      "id": "f5140312-6004-4d5d-817f-7d12b8e34459",
+      "name": "First Movie",
+      "notesInFlow": true,
+      "notes": "提取最新电影数据，准备写入基线文件"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f536388e-cfc5-489e-ba08-0306fbdd71dd",
+              "name": "movie",
+              "value": "={{ $('First Movie').item.json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1400,
+        40
+      ],
+      "id": "aed23944-7298-4836-aa92-b8a384d84f60",
+      "name": "SET JSON"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/home/file/baseline.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1820,
+        40
+      ],
+      "id": "b50237ca-af68-410e-9739-e4d0c410b4d8",
+      "name": "baseline.json",
+      "notesInFlow": true,
+      "notes": "生成新基线文件baseline.json"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        220
+      ],
+      "id": "529dfc2b-5a20-420d-b628-d2f819043f89",
+      "name": "baseline"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/home/file/baseline.json",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        220
+      ],
+      "id": "d4998277-a662-43c8-956d-758b942fad29",
+      "name": "Read baseline.json"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "037db1b1-0265-4268-8232-621c9fd06964",
+              "leftValue": "={{ $json.add_date.toDateTime() }}",
+              "rightValue": "={{ $('baseline').item.json.data[0].movie.add_date.toDateTime() }} ",
+              "operator": {
+                "type": "dateTime",
+                "operation": "after"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        220
+      ],
+      "id": "2f24eea3-ca42-49e3-8142-54cea230cc93",
+      "name": "New Movie",
+      "notesInFlow": true,
+      "notes": "与基线文件add_date对比，判断是否存在新电影"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1180,
+        380
+      ],
+      "id": "90e48af6-cda4-4a8b-acdd-5ae77a870f37",
+      "name": "movie_json Loop"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "BjK7369kF2QDPLIh",
+          "mode": "list",
+          "cachedResultName": "TmdbToRadarr"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1760,
+        380
+      ],
+      "id": "e5a23ce3-3d98-4fc2-8366-76d5227d049e",
+      "name": "Execute TmdbToRadarr"
+    },
+    {
+      "parameters": {
+        "content": "## 注释 \n**读取baseline.json**",
+        "height": 260,
+        "width": 420
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -440,
+        120
+      ],
+      "id": "24611799-aad0-4652-82d9-9ee0b28e5351",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## 注释 \n====请求豆瓣“想看”列表=========从HTML提取信息========通过Code解析为JSON",
+        "height": 260,
+        "width": 640
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        40,
+        120
+      ],
+      "id": "ee78775d-430f-4332-9812-fae871caa689",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        420
+      ],
+      "id": "53b3793e-e015-4d28-925d-c2b65b79c006",
+      "name": "示例1"
+    },
+    {
+      "parameters": {
+        "content": "## 示例",
+        "height": 180,
+        "width": 1120
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -440,
+        400
+      ],
+      "id": "7983fe15-28ce-4bc4-80e1-63c0e179d5d6",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    \"movie_name\": [\n      \"作家\",\n      \"El autor\",\n      \"命运小说家(台)\",\n      \"不良动机\"\n    ],\n    \"year\": \"2017\",\n    \"add_date\": \"2025-05-10\"\n  },\n  {\n    \"movie_name\": [\n      \"鸟笼\",\n      \"The Birdcage\",\n      \"假凤虚凰\",\n      \"鸟笼夜总会\"\n    ],\n    \"year\": \"1996\",\n    \"add_date\": \"2025-05-02T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"无痛凯恩\",\n      \"Novocaine\",\n      \"无痛先生(台)\",\n      \"无痛侠(港)\"\n    ],\n    \"year\": \"2025\",\n    \"add_date\": \"2025-04-24T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"闹事之徒\",\n      \"The Instigators\",\n      \"煽动者\"\n    ],\n    \"year\": \"2024\",\n    \"add_date\": \"2025-03-23T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"猫猫的奇幻漂流\",\n      \"Straume\",\n      \"漂流\",\n      \"黑猫的奇幻漂流\"\n    ],\n    \"year\": \"2024\",\n    \"add_date\": \"2025-03-22T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"心之全蚀\",\n      \"Total Eclipse\",\n      \"全蚀狂爱(台)\",\n      \"Eclipse totale\"\n    ],\n    \"year\": \"1995\",\n    \"add_date\": \"2025-03-16T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"传奇\",\n      \"Legend\",\n      \"金牌黑帮(台)\",\n      \"大时代(港)\"\n    ],\n    \"year\": \"2015\",\n    \"add_date\": \"2025-03-16T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"寂静人生\",\n      \"Still Life\",\n      \"继续活着\",\n      \"无人出席的告別式\"\n    ],\n    \"year\": \"2013\",\n    \"add_date\": \"2024-10-12T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"莫娣\",\n      \"Maudie\",\n      \"彩绘心天地(台)\",\n      \"茉迪的彩色小屋(台)\"\n    ],\n    \"year\": \"2016\",\n    \"add_date\": \"2024-10-08T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"垃圾男孩\",\n      \"Trash\",\n      \"拾荒男孩\"\n    ],\n    \"year\": \"2014\",\n    \"add_date\": \"2024-09-29T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"小姐好白\",\n      \"White Chicks\",\n      \"白净密探\",\n      \"雏鸟小白\"\n    ],\n    \"year\": \"2004\",\n    \"add_date\": \"2024-09-14T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"爱之女巫\",\n      \"The Love Witch\",\n      \"恋爱魔女\"\n    ],\n    \"year\": \"2016\",\n    \"add_date\": \"2024-07-28T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"布朗克斯的故事\",\n      \"A Bronx Tale\",\n      \"四海情深\",\n      \"不一样的童年\"\n    ],\n    \"year\": \"1993\",\n    \"add_date\": \"2024-05-29T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"阿诺拉\",\n      \"Anora\",\n      \"艾诺拉(台)\"\n    ],\n    \"year\": \"2024\",\n    \"add_date\": \"2024-05-29T00:00:00.000Z\"\n  },\n  {\n    \"movie_name\": [\n      \"艾米莉亚·佩雷斯\",\n      \"Emilia Pérez\",\n      \"艾米莉亚\",\n      \"毒王女人梦\"\n    ],\n    \"year\": \"2024\",\n    \"add_date\": \"2024-05-29T00:00:00.000Z\"\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        420
+      ],
+      "id": "aed07221-6920-4852-80fd-18b0e0ee1d86",
+      "name": "示例2"
+    },
+    {
+      "parameters": {
+        "content": "## 注释 \n**与基线文件add_date对比，判断是否存在新电影**",
+        "height": 260,
+        "width": 340
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        720,
+        120
+      ],
+      "id": "fe5d41ea-610f-43cf-b56d-9620009a61c9",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## 注释 \n**提取第一部电影信息作为基线文件内容**",
+        "height": 260,
+        "width": 440
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        -40
+      ],
+      "id": "33ee0c40-ef1a-49cf-85b7-76c33761f31b",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## 注释 \n**生成新基线文件baseline.json**",
+        "height": 260,
+        "width": 420
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        -40
+      ],
+      "id": "21e30660-8550-4884-82c5-1c92b819781b",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "## 注释 \n- **遍历获取到的电影，直到add_date晚于基线文件中的add_date，结束循环，不再遍历后面的电影。**\n- **子流程TmdbToRadarr用于执行获取电影Tmdb ID，再添加到Radarr中。**",
+        "height": 320,
+        "width": 860
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        280
+      ],
+      "id": "1b458ff0-d191-4dc6-9300-3ef878e79d0c",
+      "name": "Sticky Note8"
+    }
+  ],
+  "pinData": {
+    "示例1": [
+      {
+        "json": {
+          "data": [
+            {
+              "movie": {
+                "movie_name": [
+                  "作家",
+                  "El autor",
+                  "命运小说家(台)",
+                  "不良动机"
+                ],
+                "year": "2017",
+                "add_date": "2025-05-10"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "示例2": [
+      {
+        "json": {
+          "movie_name": [
+            "作家",
+            "El autor",
+            "命运小说家(台)",
+            "不良动机"
+          ],
+          "year": "2017",
+          "add_date": "2025-05-10"
+        }
+      },
+      {
+        "json": {
+          "movie_name": [
+            "鸟笼",
+            "The Birdcage",
+            "假凤虚凰",
+            "鸟笼夜总会"
+          ],
+          "year": "1996",
+          "add_date": "2025-05-02"
+        }
+      },
+      {
+        "json": {
+          "movie_name": [
+            "无痛凯恩",
+            "Novocaine",
+            "无痛先生(台)",
+            "无痛侠(港)"
+          ],
+          "year": "2025",
+          "add_date": "2025-04-24"
+        }
+      },
+      {
+        "json": {
+          "movie_name": [
+            "闹事之徒",
+            "The Instigators",
+            "煽动者"
+          ],
+          "year": "2024",
+          "add_date": "2025-03-23"
+        }
+      },
+      {
+        "json": {
+          "movie_name": [
+            "猫猫的奇幻漂流",
+            "Straume",
+            "漂流",
+            "黑猫的奇幻漂流"
+          ],
+          "year": "2024",
+          "add_date": "2025-03-22"
+        }
+      },
+      {
+        "json": {
+          "movie_name": [
+            "心之全蚀",
+            "Total Eclipse",
+            "全蚀狂爱(台)",
+            "Eclipse totale"
+          ],
+          "year": "1995",
+          "add_date": "2025-03-16"
+        }
+      },
+      {
+        "json": {
+          "movie_name": [
+            "传奇",
+            "Legend",
+            "金牌黑帮(台)",
+            "大时代(港)"
+          ],
+          "year": "2015",
+          "add_date": "2025-03-16"
+        }
+      },
+      {
+        "json": {
+          "movie_name": [
+            "寂静人生",
+            "Still Life",
+            "继续活着",
+            "无人出席的告別式"
+          ],
+          "year": "2013",
+          "add_date": "2024-10-12"
+        }
+      },
+      {
+        "json": {
+          "movie_name": [
+            "莫娣",
+            "Maudie",
+            "彩绘心天地(台)",
+            "茉迪的彩色小屋(台)"
+          ],
+          "year": "2016",
+          "add_date": "2024-10-08"
+        }
+      },
+      {
+        "json": {
+          "movie_name": [
+            "垃圾男孩",
+            "Trash",
+            "拾荒男孩"
+          ],
+          "year": "2014",
+          "add_date": "2024-09-29"
+        }
+      },
+      {
+        "json": {
+          "movie_name": [
+            "小姐好白",
+            "White Chicks",
+            "白净密探",
+            "雏鸟小白"
+          ],
+          "year": "2004",
+          "add_date": "2024-09-14"
+        }
+      },
+      {
+        "json": {
+          "movie_name": [
+            "爱之女巫",
+            "The Love Witch",
+            "恋爱魔女"
+          ],
+          "year": "2016",
+          "add_date": "2024-07-28"
+        }
+      },
+      {
+        "json": {
+          "movie_name": [
+            "布朗克斯的故事",
+            "A Bronx Tale",
+            "四海情深",
+            "不一样的童年"
+          ],
+          "year": "1993",
+          "add_date": "2024-05-29"
+        }
+      },
+      {
+        "json": {
+          "movie_name": [
+            "阿诺拉",
+            "Anora",
+            "艾诺拉(台)"
+          ],
+          "year": "2024",
+          "add_date": "2024-05-29"
+        }
+      },
+      {
+        "json": {
+          "movie_name": [
+            "艾米莉亚·佩雷斯",
+            "Emilia Pérez",
+            "艾米莉亚",
+            "毒王女人梦"
+          ],
+          "year": "2024",
+          "add_date": "2024-05-29"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read baseline.json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DouBan_Wishlist": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "New Movie",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "add_date": {
+      "main": [
+        [
+          {
+            "node": "Execute TmdbToRadarr",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "baseline.json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "First Movie": {
+      "main": [
+        [
+          {
+            "node": "SET JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SET JSON": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "baseline": {
+      "main": [
+        [
+          {
+            "node": "DouBan_Wishlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read baseline.json": {
+      "main": [
+        [
+          {
+            "node": "baseline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Movie": {
+      "main": [
+        [
+          {
+            "node": "movie_json Loop",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "First Movie",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "baseline.json": {
+      "main": [
+        []
+      ]
+    },
+    "movie_json Loop": {
+      "main": [
+        [],
+        [
+          {
+            "node": "add_date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute TmdbToRadarr": {
+      "main": [
+        [
+          {
+            "node": "movie_json Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "示例2": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "63500a15-ddde-41bd-affc-04a4504c7f33",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "64f35fc4b4f79076eb1d6d0e71a6fef6f2fb797f6a587c3a3085dec46e891a27"
+  },
+  "id": "8zsOu2dmwzeQyDkD",
+  "tags": []
+}
